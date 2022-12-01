@@ -273,6 +273,7 @@ class DoubleMUnet(nn.Module):
 
     def _forward_core(self, x) -> torch.Tensor:
         if self.ch_in == 3:
+            #print(x.shape)
             x0 = x[:, [0]]
             x1 = x[:, [1]]
             x2 = x[:, [2]]
@@ -294,6 +295,7 @@ class DoubleMUnet(nn.Module):
 class MLTHeads(nn.Module):
     def __init__(self, in_channels, out_channels, last_kernel, norm, norm_groups, padding, activation):
         super().__init__()
+        #print(f"In the initialization padding: {padding} -- {type(padding)}")
         self.norm = norm
         self.norm_groups = norm_groups
         if self.norm is not None:
@@ -303,12 +305,17 @@ class MLTHeads(nn.Module):
             groups_1 = None
             groups_2 = None
 
-        padding = padding
+        if padding:
+            padding = 1
+        else:
+            padding=0
 
         self.core = self._make_core(in_channels, groups_1, groups_2, activation, padding, self.norm)
-        self.out_conv = nn.Conv2d(in_channels, out_channels, kernel_size=last_kernel, padding=False)
+        self.out_conv = nn.Conv2d(in_channels, out_channels, kernel_size=last_kernel, padding=0)
 
     def forward(self, x):
+        #print(f"Input x: is of shape: {x.shape} and type: {type(x)}")
+        #print(self.core)
         o = self.core.forward(x)
         o = self.out_conv.forward(o)
 
@@ -316,6 +323,7 @@ class MLTHeads(nn.Module):
 
     @staticmethod
     def _make_core(in_channels, groups_1, groups_2, activation, padding, norm):
+        #print(f"Padding is {padding}")
         if norm == 'GroupNorm':
             return nn.Sequential(nn.GroupNorm(groups_1, in_channels),
                                  nn.Conv2d(in_channels, in_channels,

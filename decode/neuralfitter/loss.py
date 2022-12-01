@@ -216,11 +216,14 @@ class GaussianMMLoss(Loss):
 
         """Hacky way to get all prob indices"""
         p_inds = tuple((p + 1).nonzero(as_tuple=False).transpose(1, 0))
+        #print(p_inds)
         pxyz_mu = pxyz_mu[p_inds[0], :, p_inds[1], p_inds[2]]
 
         """Convert px shifts to absolute coordinates"""
-        pxyz_mu[:, 1] += self._offset2coord.bin_ctr_x[p_inds[1]].to(pxyz_mu.device)
-        pxyz_mu[:, 2] += self._offset2coord.bin_ctr_y[p_inds[2]].to(pxyz_mu.device)
+        #pxyz_mu[:, 1] += self._offset2coord.bin_ctr_x[p_inds[1]].to(pxyz_mu.device)
+        pxyz_mu[:, 1] += self._offset2coord.bin_ctr_x.to(pxyz_mu.device)[p_inds[1]]
+        #pxyz_mu[:, 2] += self._offset2coord.bin_ctr_y[p_inds[2]].to(pxyz_mu.device)
+        pxyz_mu[:, 2] += self._offset2coord.bin_ctr_y.to(pxyz_mu.device)[p_inds[2]]
 
         """Flatten img dimension --> N x (HxW) x 4"""
         pxyz_mu = pxyz_mu.reshape(batch_size, -1, 4)
