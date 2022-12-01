@@ -230,7 +230,7 @@ class GaussianMMLoss(Loss):
         pxyz_sig = pxyz_sig[p_inds[0], :, p_inds[1], p_inds[2]].reshape(batch_size, -1, 4)
 
         """Set up mixture family"""
-        mix = distributions.Categorical(prob_normed[p_inds].reshape(batch_size, -1))
+        mix = distributions.Categorical(prob_normed[p_inds].reshape(batch_size, -1), validate_args=False)
         comp = distributions.Independent(distributions.Normal(pxyz_mu, pxyz_sig), 1)
         gmm = distributions.mixture_same_family.MixtureSameFamily(mix, comp)
 
