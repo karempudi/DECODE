@@ -36,9 +36,9 @@ def setup_random_simulation(param):
 
     #prior_train = decode.simulation.emitter_generator.EmitterSamplerBlinking.parse(
     #    param, structure=prior_struct, frames=frame_range_train)
-    prior_train = decode.simulation.emitter_generator.EmitterSamplerFrameIndependent(
-            structure=prior_struct, photon_range=(10000, 10001), em_avg=param.Simulation.emitter_av,
-            xy_unit=param.Simulation.xy_unit, px_size=param.Camera.px_size, frames=frame_range_train)
+    prior_train = decode.simulation.emitter_generator.EmitterSamplerFrameIndependentDeterministic.parse(
+        param, structure=prior_struct, frames=frame_range_train
+    )
 
     """Define our background and noise model."""
     bg = decode.simulation.background.UniformBackground.parse(param)
@@ -55,8 +55,11 @@ def setup_random_simulation(param):
 
     frame_range_test = (0, param.TestSet.test_size)
 
-    prior_test = decode.simulation.emitter_generator.EmitterSamplerBlinking.parse(
-        param, structure=prior_struct, frames=frame_range_test)
+    #prior_test = decode.simulation.emitter_generator.EmitterSamplerBlinking.parse(
+    #    param, structure=prior_struct, frames=frame_range_test)
+    prior_test = decode.simulation.emitter_generator.EmitterSamplerFrameIndependentDeterministic.parse(
+        param, structure=prior_struct, frames=frame_range_test
+    )
 
     simulation_test = decode.simulation.simulator.Simulation(psf=psf, em_sampler=prior_test, background=bg, noise=noise,
                                                              frame_range=frame_range_test)

@@ -29,15 +29,14 @@ class EmitterSampler(ABC):
     def sample(self) -> decode.generic.emitter.EmitterSet:
         raise NotImplementedError
 
-
-class EmitterSamplerFrameIndependent(EmitterSampler):
+class EmitterSamplerFrameIndependentDeterministic(EmitterSampler):
     """
     Simple Emitter sampler. Samples emitters from a structure and puts them all on the same frame, i.e. their
     blinking model is not modelled.
 
     """
 
-    def __init__(self, *, structure: structure_prior.StructurePrior, photon_range: tuple, frame_range:tuple,
+    def __init__(self, *, structure: structure_prior.StructurePrior, photon_range: tuple, frame_range: tuple,
                  density: float = None, em_avg: float = None, xy_unit: str, px_size: tuple):
         """
 
@@ -73,20 +72,11 @@ class EmitterSamplerFrameIndependent(EmitterSampler):
     @property
     def em_avg(self) -> float:
         return self._em_avg
-    
+   
     @property
-    def num_frames(self):
+    def num_frames(self) -> float:
         return self.frame_range[1] - self.frame_range[0] + 1
-
-    @classmethod
-    def parse(self, param, structure, frames: tuple):
-        return cls(structure=structure,
-                   photon_range=param.Simulation.photon_range,
-                   em_avg=param.Simulation.em_avg,
-                   density=param.Simulation.denstiy,
-                   xy_unit=param.Simulation.xy_unit,
-                   px_size=param.Camera.px_size)
-
+    
     def sample(self) -> decode.generic.emitter.EmitterSet:
         """
         Sample an EmitterSet.
@@ -95,10 +85,97 @@ class EmitterSamplerFrameIndependent(EmitterSampler):
             EmitterSet:
 
         """
-        # switching off this random generation, only n emitters placed deter
-        # -ministically on one frame
-        #n = np.random.poisson(lam=self._em_avg)
-        n = self._em_avg
+        n = self._em_avg 
+        return self.sample_n(n=n)
+   
+    def sample_n(self, n: int) -> decode.generic.emitter.EmitterSet:
+        """
+        Sample 'n' emitters, i.e. the number of emitters is given and is not sampled from the Poisson dist.
+
+        Args:
+            n: number of emitters per frame
+
+        """
+
+        if n < 0:
+            raise ValueError("Negative number of samples is not well-defined.")
+
+        n_emitters = n * self.num_frames
+        xyz = self.structure.sample(n_emitters)
+        phot = torch.randint(*self.photon_range, (n_emitters,))
+        frame_ix = torch.from_numpy(np.arange(self.num_frames).repeat(self._em_avg)).long()
+
+        return decode.generic.emitter.EmitterSet(xyz=xyz, phot=phot,
+                                                 frame_ix=frame_ix,
+                                                 id=torch.arange(n_emitters).long(),
+                                                 xy_unit=self.xy_unit,
+                                                 px_size=self.px_size)
+
+ 
+    @classmethod
+    def parse(cls, param, structure, frames: tuple):
+        return cls(structure=structure,
+                    photon_range=param.Simulation.photon_range,
+                    frame_range=frames,
+                    em_avg=param.Simulation.emitter_av,
+                    density=param.Simulation.density,
+                    xy_unit=param.Simulation.xy_unit,
+                    px_size=param.Camera.px_size,
+                    )
+ 
+
+class EmitterSamplerFrameIndependent(EmitterSampler):
+    """
+    Simple Emitter sampler. Samples emitters from a structure and puts them all on the same frame, i.e. their
+    blinking model is not modelled.
+
+    """
+
+    def __init__(self, *, structure: structure_prior.StructurePrior, photon_range: tuple,
+                 density: float = None, em_avg: float = None, xy_unit: str, px_size: tuple):
+        """
+
+        Args:
+            structure: structure to sample from
+            photon_range: range of photon value to sample from (uniformly)
+            density: target emitter density (exactly only when em_avg is None)
+            em_avg: target emitter average (exactly only when density is None)
+            xy_unit: emitter xy unit
+            px_size: emitter pixel size
+
+        """
+
+        super().__init__(structure=structure, xy_unit=xy_unit, px_size=px_size)
+
+        self._density = density
+        self.photon_range = photon_range
+        """
+        Sanity Checks.
+        U shall not pa(rse)! (Emitter Average and Density at the same time!
+        """
+        if (density is None and em_avg is None) or (density is not None and em_avg is not None):
+            raise ValueError("You must XOR parse either density or emitter average. Not both or none.")
+
+        self.area = self.structure.area
+
+        if em_avg is not None:
+            self._em_avg = em_avg
+        else:
+            self._em_avg = self._density * self.area
+
+    @property
+    def em_avg(self) -> float:
+        return self._em_avg
+    
+    def sample(self) -> decode.generic.emitter.EmitterSet:
+        """
+        Sample an EmitterSet.
+
+        Returns:
+            EmitterSet:
+
+        """
+        n = np.random.poisson(lam=self._em_avg)
         return self.sample_n(n=n)
 
     def sample_n(self, n: int) -> decode.generic.emitter.EmitterSet:
@@ -115,7 +192,6 @@ class EmitterSamplerFrameIndependent(EmitterSampler):
 
         xyz = self.structure.sample(n)
         phot = torch.randint(*self.photon_range, (n,))
-        #frame_ix = torch.arange(n).long()
 
         return decode.generic.emitter.EmitterSet(xyz=xyz, phot=phot,
                                                  frame_ix=torch.zeros_like(phot).long(),
@@ -147,7 +223,7 @@ class EmitterSamplerBlinking(EmitterSamplerFrameIndependent):
                          px_size=px_size,
                          density=density,
                          em_avg=em_avg,
-                         frame_range=frame_range)
+                         )
 
         self.n_sampler = np.random.poisson
         self.frame_range = frame_range
