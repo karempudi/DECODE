@@ -37,7 +37,7 @@ class EmitterSamplerFrameIndependent(EmitterSampler):
 
     """
 
-    def __init__(self, *, structure: structure_prior.StructurePrior, photon_range: tuple,
+    def __init__(self, *, structure: structure_prior.StructurePrior, photon_range: tuple, frame_range:tuple,
                  density: float = None, em_avg: float = None, xy_unit: str, px_size: tuple):
         """
 
@@ -55,7 +55,7 @@ class EmitterSamplerFrameIndependent(EmitterSampler):
 
         self._density = density
         self.photon_range = photon_range
-
+        self.frame_range = frame_range
         """
         Sanity Checks.
         U shall not pa(rse)! (Emitter Average and Density at the same time!
@@ -73,6 +73,19 @@ class EmitterSamplerFrameIndependent(EmitterSampler):
     @property
     def em_avg(self) -> float:
         return self._em_avg
+    
+    @property
+    def num_frames(self):
+        return self.frame_range[1] - self.frame_range[0] + 1
+
+    @classmethod
+    def parse(self, param, structure, frames: tuple):
+        return cls(structure=structure,
+                   photon_range=param.Simulation.photon_range,
+                   em_avg=param.Simulation.em_avg,
+                   density=param.Simulation.denstiy,
+                   xy_unit=param.Simulation.xy_unit,
+                   px_size=param.Camera.px_size)
 
     def sample(self) -> decode.generic.emitter.EmitterSet:
         """
@@ -82,8 +95,10 @@ class EmitterSamplerFrameIndependent(EmitterSampler):
             EmitterSet:
 
         """
-        n = np.random.poisson(lam=self._em_avg)
-
+        # switching off this random generation, only n emitters placed deter
+        # -ministically on one frame
+        #n = np.random.poisson(lam=self._em_avg)
+        n = self._em_avg
         return self.sample_n(n=n)
 
     def sample_n(self, n: int) -> decode.generic.emitter.EmitterSet:
@@ -91,7 +106,7 @@ class EmitterSamplerFrameIndependent(EmitterSampler):
         Sample 'n' emitters, i.e. the number of emitters is given and is not sampled from the Poisson dist.
 
         Args:
-            n: number of emitters
+            n: number of emitters per frame
 
         """
 
@@ -100,6 +115,7 @@ class EmitterSamplerFrameIndependent(EmitterSampler):
 
         xyz = self.structure.sample(n)
         phot = torch.randint(*self.photon_range, (n,))
+        #frame_ix = torch.arange(n).long()
 
         return decode.generic.emitter.EmitterSet(xyz=xyz, phot=phot,
                                                  frame_ix=torch.zeros_like(phot).long(),
@@ -130,7 +146,8 @@ class EmitterSamplerBlinking(EmitterSamplerFrameIndependent):
                          xy_unit=xy_unit,
                          px_size=px_size,
                          density=density,
-                         em_avg=em_avg)
+                         em_avg=em_avg,
+                         frame_range=frame_range)
 
         self.n_sampler = np.random.poisson
         self.frame_range = frame_range
