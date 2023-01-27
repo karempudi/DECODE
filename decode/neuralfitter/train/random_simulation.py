@@ -12,7 +12,7 @@ def setup_random_simulation(param):
         3. Setup simulation and datasets
         """
 
-    psf = decode.utils.calibration_io.SplineCoefficient(
+    psf = decode.utils.calibration_io.SMAPSplineCoefficient(
         calib_file=param.InOut.calibration_file).init_spline(
         xextent=param.Simulation.psf_extent[0],
         yextent=param.Simulation.psf_extent[1],
