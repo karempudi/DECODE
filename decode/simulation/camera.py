@@ -153,6 +153,28 @@ class PerfectCamera(Photon2Camera):
     def parse(cls, param):
         return cls(device=param.Hardware.device_simulation)
 
+class SCMOSPhotometrix(Photon2Camera):
+    """
+    Models a sCMOS camera, with appropriate parameters. Photmoterics camera has a pattern-free read sigma.
+
+    Call forward to convert from photon-counts to ADU.
+    Call backward to convert from ADU to photon-counts
+
+    """
+    def __init__(self, qe: float, spur_noise: float, em_gain: Union[float, None], 
+                e_per_adu: float, baseline: float, read_sigma: float,
+                photon_units: bool, device: (str, torch.device) = None):
+        super().__init__(qe=qe, spur_noise=0., em_gain=None, e_per_adu=e_per_adu,
+                    baseline=baseline, read_sigma=read_sigma, photon_units=photon_units, device=device)
+
+    @classmethod
+    def parse(cls, param):
+        return cls(qe=param.Camera.qe, spur_noise=param.Camera.spur_noise,
+                   em_gain=param.Camera.em_gain, e_per_adu=param.Camera.e_per_adu,
+                   baseline=param.Camera.baseline, read_sigma=param.Camera.read_sigma,
+                   photon_units=param.Camera.convert2photons,
+                   device=param.Hardware.device_simulation)
+
 
 @deprecated(reason="Not yet ready implementation. Needs thorough testing and validation.")
 class SCMOS(Photon2Camera):
@@ -239,3 +261,5 @@ class SCMOS(Photon2Camera):
             self.read = noise_distributions.Gaussian(self._read_sigma.to(device))
 
         return super().forward(x, device=device)
+
+    
