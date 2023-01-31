@@ -95,3 +95,61 @@ class Simulation:
             frames = self.noise.forward(frames)
 
         return frames, bg_frames
+
+class CellSimulation:
+    """
+    A simulation class, that will spit out emitters, frames, and background frames
+    where psf of the emitters is overlaid on the frame, and background frame is the 
+    cell background. Use the index slicing operations on these 3 items to check
+    individual datapoints
+
+    Attributes:
+
+    """
+
+    def __init__(self, psf: psf_kernel.PSF, param=None, noise=None,
+                frame_range: Tuple[int, int] = None, 
+            ):
+        """
+        Init Simulation.
+        
+        Args:
+            psf: point spread function instance
+            param: parameters RecursiveNamespace object
+            noise: noise instance
+            frame_range: limit frame to static range
+        """
+        self.frame_range = frame_range if frame_range is not None else (None, None)
+        self.psf = psf
+        self.noise = noise
+
+    def sample(self):
+        """
+
+        Returns:
+            EmitterSet: sampled emitters
+            torch.Tensor: simulated frames
+            torch.Tensor: background frames
+        """
+
+        # these are used to make approriate targets in the dataset 
+        # used by the network. This function is called once per epoch
+        return emitter, frames, bg
+    
+    def forward(self, em: EmitterSet):
+        """
+        Forward an emitter set through the simulation pipeline.
+        Setting ix_low or ix_high overwrites the frame range specified in the init.
+
+        Args:
+            ix_low: lower frame index
+            ix_high: upper frame index (inclusive)
+        
+        Returns:
+            torch.Tensor: simulated frames
+            torch.Tensor: background frames (to predict background seperately)
+        """
+
+        return frames, bg_frames
+
+    
