@@ -195,7 +195,7 @@ def live_engine_setup(param_file: str, device_overwrite: str = None, debug: bool
 
         conv_check = decode.neuralfitter.utils.progress.GMMHeuristicCheck(
             ref_epoch=1,
-            emitter_avg=sim_train.em_sampler.em_avg,
+            emitter_avg=sim_train.em_avg,
             threshold=param.HyperParameter.auto_restart_param.restart_treshold,
         )
 

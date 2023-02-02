@@ -127,6 +127,7 @@ class CellSimulation:
         self.noise = noise
         self.param = param
         self.device = device
+        self.em_avg = param.Simulation.emitter_av
 
     def sample(self):
         """
