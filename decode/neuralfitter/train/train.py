@@ -16,6 +16,7 @@ import decode.neuralfitter.utils
 import decode.simulation
 import decode.utils
 from decode.neuralfitter.train.random_simulation import setup_random_simulation
+from decode.neuralfitter.train.random_cellbg_simulation import setup_random_simulation_cells
 from decode.neuralfitter.utils import log_train_val_progress
 from decode.utils.checkpoint import CheckPoint
 
@@ -168,7 +169,8 @@ def live_engine_setup(param_file: str, device_overwrite: str = None, debug: bool
                                                                          "dphot_red_sig"]),
              decode.neuralfitter.utils.logger.DictLogger()])
 
-    sim_train, sim_test = setup_random_simulation(param)
+    #sim_train, sim_test = setup_random_simulation(param)
+    sim_train, sim_test = setup_random_simulation_cells(param)
     ds_train, ds_test, model, model_ls, optimizer, criterion, lr_scheduler, grad_mod, post_processor, matcher, ckpt = \
         setup_trainer(sim_train, sim_test, logger, model_out, ckpt_path, device, param)
     dl_train, dl_test = setup_dataloader(param, ds_train, ds_test)

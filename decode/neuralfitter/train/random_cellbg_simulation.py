@@ -1,5 +1,5 @@
 import decode.simulation
-import decode.util
+import decode.utils
 
 def setup_random_simulation_cells(param):
     """
@@ -37,12 +37,12 @@ def setup_random_simulation_cells(param):
     # image through after you do PSF simulation and 
     if param.CameraPreset == 'Perfect':
         noise = decode.simulation.camera.PerfectCamera.parse(param)
-    elif param.CameraPreset is not None:
-        raise NotImplementedError  
     elif param.CameraPreset == 'EMCCD':
         noise = decode.simulation.camera.Photon2Camera.parse(param)
     elif param.CameraPreset == 'SCMOSPhotometrix':
         noise = decode.simulation.camera.SCMOSPhotometrix.parse(param)
+    elif param.CameraPreset is not None:
+        raise NotImplementedError  
 
     # use the psf, noise and param to generate the simulation data with a sample() method 
     # on this object
@@ -50,13 +50,15 @@ def setup_random_simulation_cells(param):
                                                                 param=param,
                                                                 noise=noise,
                                                                 frame_range=frame_range_train,
+                                                                device=param.Hardware.device_simulation
                                                                 )
 
     frame_range_test = (0, param.TestSet.test_size)
 
-    simulation_test = decode.simulatoin.simulator.Simulation(psf=psf, 
+    simulation_test = decode.simulation.simulator.CellSimulation(psf=psf, 
                         param=param,
                         noise=noise,
-                        frame_range=frame_range_test)
+                        frame_range=frame_range_test,
+                        device=param.Hardware.device_simulation)
 
     return simulation_train, simulation_test

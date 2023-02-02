@@ -111,7 +111,7 @@ class CellSimulation:
     """
 
     def __init__(self, psf: psf_kernel.PSF, param=None, noise=None,
-                frame_range: Tuple[int, int] = None, 
+                frame_range: Tuple[int, int] = None, device=None, 
             ):
         """
         Init Simulation.
@@ -125,6 +125,8 @@ class CellSimulation:
         self.frame_range = frame_range if frame_range is not None else (None, None)
         self.psf = psf
         self.noise = noise
+        self.param = param
+        self.device = device
 
     def sample(self):
         """
@@ -134,10 +136,11 @@ class CellSimulation:
             torch.Tensor: simulated frames
             torch.Tensor: background frames
         """
-
+        param = self.param
         # these are used to make approriate targets in the dataset 
         # used by the network. This function is called once per epoch
         # see how many frames are needed.
+
         num_frames = self.frame_range[1] - self.frame_range[0] + 1
         photon_range = param.Simulation.photon_range
 
@@ -166,8 +169,7 @@ class CellSimulation:
             data = np.load(filename2read)
             cell_bg.append(data[param.Simulation.bg_type])
             mask_bg.append(data['mask'])
-        cell_bg = np.concatenate(cell_bg, axis=0)[:num_frames]
-        cell_bg *= param.Simulation.bg_scale_factor
+        cell_bg = np.concatenate(cell_bg, axis=0)[:num_frames].astype('float32')
         mask_bg = np.concatenate(mask_bg, axis=0)[:num_frames]
 
         # sample dots from the masks to generate emitter sets
@@ -193,10 +195,10 @@ class CellSimulation:
         # 
         z_extent = param.Simulation.emitter_extent[2]
         xyz = torch.zeros((n_emitters, 3))
-        xyz[:, 0] = torch.from_numpy(x.astype('float32')) 
-        xyz[:, 0] += torch.rand((n_emitters,)) - 0.5
-        xyz[:, 1] = torch.from_numpy(y.astype('float32'))
+        xyz[:, 1] = torch.from_numpy(x.astype('float32')) 
         xyz[:, 1] += torch.rand((n_emitters,)) - 0.5
+        xyz[:, 0] = torch.from_numpy(y.astype('float32'))
+        xyz[:, 0] += torch.rand((n_emitters,)) - 0.5
         xyz[:, 2] = (z_extent[1] - z_extent[0]) * torch.rand((n_emitters,))  + z_extent[0]
 
         # photon_counts
@@ -210,9 +212,13 @@ class CellSimulation:
                         xy_unit=xy_unit,
                         px_size=px_size
         )
-        frames, bg = self.forward(emitter, cell_bg)
 
-        return emitter, frames, bg
+        # send the read cell_bg to the correct device where the psf simulation is
+        # being done
+        cell_bg = torch.from_numpy(cell_bg.astype('float32'))
+        frames, cell_bg = self.forward(emitter, cell_bg)
+
+        return emitter, frames, cell_bg
     
     def forward(self, em: EmitterSet, cell_bg: torch.Tensor, ix_low:Union[None, int] = None,
             ix_high: Union[None, int] = None) -> Tuple[torch.Tensor, torch.Tensor]:
@@ -236,15 +242,25 @@ class CellSimulation:
 
         # forward the emitters and get the PSF simulation stack
 
-        psf_frames = self.psf.forward(em.xyz_px, em.phot, em.frame_ix, 
+        frames = self.psf.forward(em.xyz_px, em.phot, em.frame_ix, 
                                   ix_low=ix_low, ix_high=ix_high)
+        frames = frames.to(self.device)
 
         # pass the cell_bg back to the camera to go into photons as you are in ADU
-        #cell_bg =  self.noise.backward(cell_bg)
+        cell_bg =  self.noise.backward(cell_bg)
+        cell_bg = cell_bg.to(self.device)
+
+        cell_bg *= self.param.Simulation.bg_scale_factor
 
         # place the frames of simulated psf on top of the background
+        #print(cell_bg.device, frames.device)
+        # add photons from fluorophore to the cell_bg
+        frames += cell_bg
+
+        # now pass the image throught the camer forward
+        frames = self.noise.forward(frames)
 
         
-        return frames, bg_frames
+        return frames, cell_bg
 
     
