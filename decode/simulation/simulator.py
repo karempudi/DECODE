@@ -219,7 +219,7 @@ class CellSimulation:
         cell_bg = torch.from_numpy(cell_bg.astype('float32'))
         frames, cell_bg = self.forward(emitter, cell_bg)
 
-        return emitter, frames, cell_bg
+        return emitter, frames, cell_bg, mask_bg
     
     def forward(self, em: EmitterSet, cell_bg: torch.Tensor, ix_low:Union[None, int] = None,
             ix_high: Union[None, int] = None) -> Tuple[torch.Tensor, torch.Tensor]:
@@ -253,15 +253,14 @@ class CellSimulation:
 
         cell_bg *= self.param.Simulation.bg_scale_factor
 
-        # place the frames of simulated psf on top of the background
-        #print(cell_bg.device, frames.device)
-        # add photons from fluorophore to the cell_bg
-        frames += cell_bg
 
         # now pass the image throught the camer forward
         frames = self.noise.forward(frames)
-
         
+        # add photons from fluorophore to the cell_bg
+        # place the frames of simulated psf on top of the background
+        frames += cell_bg
+
         return frames, cell_bg
 
     
